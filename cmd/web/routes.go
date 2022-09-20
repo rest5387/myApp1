@@ -11,35 +11,88 @@ import (
 )
 
 func routes(app *config.AppConfig) http.Handler {
-	// mux := pat.New()
-
-	// mux.Get("/", http.HandlerFunc(handlers.Repo.Home))
-	// mux.Get("/about", http.HandlerFunc(handlers.Repo.About))
 
 	mux := chi.NewRouter()
 
 	mux.Use(middleware.Recoverer)
-	// mux.Use(WriteToConsole)
 	mux.Use(NoSurf)
 	mux.Use(SessionLoad)
 
+	// Home page & card-wall ops.(Post, Update & Delete cards)
 	mux.Get("/", handlers.Repo.Home)
-	mux.Get("/about", handlers.Repo.About)
-	mux.Get("/generals-quarters", handlers.Repo.Generals)
-	mux.Get("/majors-suites", handlers.Repo.Majors)
+	// User cards page
+	mux.Route("/userid={userid}", func(mux chi.Router) {
+		mux.Use(CardParamCtx)
+		mux.Get("/", handlers.Repo.User)
+	})
+	// Log in/out page
+	mux.Get("/login", handlers.Repo.Login)
+	mux.Post("/login", handlers.Repo.PostLogin)
+	mux.Get("/logout", handlers.Repo.Logout)
+	// Sign up page
+	mux.Get("/signup", handlers.Repo.SignUp)
+	mux.Post("/signup", handlers.Repo.PostSignUp)
 
-	mux.Get("/search-availability", handlers.Repo.Availability)
-	mux.Post("/search-availability", handlers.Repo.PostAvailability)
-	mux.Post("/search-availability-json", handlers.Repo.AvailabilityJSON)
+	// mux.Route("/CardAJAX", func(mux chi.Router) {
+	// 	mux.Post("/", handlers.Repo.PostCardAJAX)
+	// 	mux.Route("/offset={offset}", func(mux chi.Router) {
+	// 		mux.Use(CardParamCtx)
+	// 		mux.Get("/", handlers.Repo.GetCardAJAX)
+	// 	})
+	// 	mux.Route("/pid={pid}", func(mux chi.Router) {
+	// 		mux.Use(CardParamCtx)
+	// 		mux.Put("/", handlers.Repo.PutCardAJAX)
+	// 		mux.Delete("/", handlers.Repo.DeleteCardAJAX)
+	// 	})
+	// 	mux.Route("/userid={userid}&offset={offset}", func(mux chi.Router) {
+	// 		mux.Use(CardParamCtx)
+	// 		mux.Get("/", handlers.Repo.GetCardAJAX)
+	// 	})
+	// })
+	// mux.Route("/User/userid={userid}", func(mux chi.Router) {
+	// 	mux.Use(CardParamCtx)
+	// 	mux.Get("/", handlers.Repo.GetUser)
+	// })
+	// mux.Route("/Follow/userid={userid}", func(mux chi.Router) {
+	// 	mux.Use(CardParamCtx)
+	// 	mux.Post("/", handlers.Repo.PostFollow)
+	// 	mux.Delete("/", handlers.Repo.DeleteFollow)
+	// })
 
-	mux.Get("/make-reservation", handlers.Repo.Reservation)
-	mux.Post("/make-reservation", handlers.Repo.PostReservation)
-	mux.Get("/reservation-summary", handlers.Repo.ReservationSummary)
-
-	mux.Get("/contact", handlers.Repo.Contact)
+	// API routes
+	mux.Route("/api", func(mux chi.Router) {
+		mux.Route("/Card", func(mux chi.Router) {
+			mux.Post("/", handlers.Repo.PostCardAJAX)
+			mux.Route("/offset={offset}", func(mux chi.Router) {
+				mux.Use(CardParamCtx)
+				mux.Get("/", handlers.Repo.GetCardAJAX)
+			})
+			mux.Route("/pid={pid}", func(mux chi.Router) {
+				mux.Use(CardParamCtx)
+				mux.Put("/", handlers.Repo.PutCardAJAX)
+				mux.Delete("/", handlers.Repo.DeleteCardAJAX)
+			})
+			mux.Route("/userid={userid}&offset={offset}", func(mux chi.Router) {
+				mux.Use(CardParamCtx)
+				mux.Get("/", handlers.Repo.GetCardAJAX)
+			})
+		})
+		mux.Route("/User/userid={userid}", func(mux chi.Router) {
+			mux.Use(CardParamCtx)
+			mux.Get("/", handlers.Repo.GetUser)
+		})
+		mux.Route("/Follow/userid={userid}", func(mux chi.Router) {
+			mux.Use(CardParamCtx)
+			mux.Post("/", handlers.Repo.PostFollow)
+			mux.Delete("/", handlers.Repo.DeleteFollow)
+		})
+	})
 
 	fileServer := http.FileServer(http.Dir("./static/"))
 	mux.Handle("/static/*", http.StripPrefix("/static", fileServer))
+
+	jsFileServer := http.FileServer(http.Dir("./js/"))
+	mux.Handle("/js/*", http.StripPrefix("/js", jsFileServer))
 
 	return mux
 }

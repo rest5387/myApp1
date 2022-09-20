@@ -63,3 +63,10 @@ func (f *Form) IsEmail(field string) {
 		f.Errors.Add(field, "Invalid email address")
 	}
 }
+
+func (f *Form) InputDoubleCheck(field1 string, field2 string) {
+	if strings.Compare(f.Values.Get(field1), f.Values.Get(field2)) != 0 {
+		f.Errors.Add(field1, fmt.Sprintf("%s is different from %s.", field1, field2))
+		f.Errors.Add(field2, fmt.Sprintf("%s is different from %s.", field2, field1))
+	}
+}
