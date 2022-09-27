@@ -33,32 +33,6 @@ func routes(app *config.AppConfig) http.Handler {
 	mux.Get("/signup", handlers.Repo.SignUp)
 	mux.Post("/signup", handlers.Repo.PostSignUp)
 
-	// mux.Route("/CardAJAX", func(mux chi.Router) {
-	// 	mux.Post("/", handlers.Repo.PostCardAJAX)
-	// 	mux.Route("/offset={offset}", func(mux chi.Router) {
-	// 		mux.Use(CardParamCtx)
-	// 		mux.Get("/", handlers.Repo.GetCardAJAX)
-	// 	})
-	// 	mux.Route("/pid={pid}", func(mux chi.Router) {
-	// 		mux.Use(CardParamCtx)
-	// 		mux.Put("/", handlers.Repo.PutCardAJAX)
-	// 		mux.Delete("/", handlers.Repo.DeleteCardAJAX)
-	// 	})
-	// 	mux.Route("/userid={userid}&offset={offset}", func(mux chi.Router) {
-	// 		mux.Use(CardParamCtx)
-	// 		mux.Get("/", handlers.Repo.GetCardAJAX)
-	// 	})
-	// })
-	// mux.Route("/User/userid={userid}", func(mux chi.Router) {
-	// 	mux.Use(CardParamCtx)
-	// 	mux.Get("/", handlers.Repo.GetUser)
-	// })
-	// mux.Route("/Follow/userid={userid}", func(mux chi.Router) {
-	// 	mux.Use(CardParamCtx)
-	// 	mux.Post("/", handlers.Repo.PostFollow)
-	// 	mux.Delete("/", handlers.Repo.DeleteFollow)
-	// })
-
 	// API routes
 	mux.Route("/api", func(mux chi.Router) {
 		mux.Route("/Card", func(mux chi.Router) {

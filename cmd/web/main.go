@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -28,25 +29,6 @@ var session *scs.SessionManager
 var infoLog *log.Logger
 var errorLog *log.Logger
 
-// //Home is the home page handler
-// func Home(w http.ResponseWriter, r *http.Request) {
-// 	renderTemplate(w, "home.page.tmpl")
-// }
-
-// //About is the about page handler
-// func About(w http.ResponseWriter, r *http.Request) {
-// 	renderTemplate(w, "about.page.tmpl")
-// }
-
-// func renderTemplate(w http.ResponseWriter, tmpl string) {
-// 	parsedTemplate, _ := template.ParseFiles("./templates/" + tmpl)
-// 	err := parsedTemplate.Execute(w, nil)
-// 	if err != nil {
-// 		fmt.Println("Error parsing template: ", err)
-// 		return
-// 	}
-// }
-
 //main is the main application function
 func main() {
 	db, err := run()
@@ -57,7 +39,6 @@ func main() {
 	defer db.Neo4j.Close()
 
 	fmt.Println(fmt.Sprintf("Starting application on port %s", portNumber))
-	// fmt.Println(db.Neo4j.Target())
 
 	srv := &http.Server{
 		Addr:    portNumber,
@@ -69,6 +50,15 @@ func main() {
 }
 
 func run() (*driver.DB, error) {
+	var (
+		neo4j_host     string
+		neo4j_username string
+		neo4j_password string
+		sql_dsn        string
+		redis_host     string
+		redis_password string
+	)
+
 	// what I am going to put in the session
 	gob.Register(models.Reservation{})
 	// change this to truw when in production
@@ -88,19 +78,70 @@ func run() (*driver.DB, error) {
 
 	app.Session = session
 
+	// Read DBs setting from file.
+	file, err := os.Open("DB_setting.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		str := scanner.Text()
+		switch str {
+		case "neo4j":
+			{
+				scanner.Scan()
+				str = scanner.Text()
+				fmt.Sscanf(str, "host:%s", &neo4j_host)
+				scanner.Scan()
+				str = scanner.Text()
+				fmt.Sscanf(str, "username:%s", &neo4j_username)
+				scanner.Scan()
+				str = scanner.Text()
+				fmt.Sscanf(str, "password:%s", &neo4j_password)
+			}
+		case "postgresql":
+			{
+				scanner.Scan()
+				sql_dsn = scanner.Text()
+			}
+		case "redis":
+			{
+				scanner.Scan()
+				str = scanner.Text()
+				fmt.Sscanf(str, "host:%s", &redis_host)
+				scanner.Scan()
+				str = scanner.Text()
+				fmt.Sscanf(str, "password:%s", &redis_password)
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
 	// connect to databases
 	log.Println("Connecting to database...")
-	db, err := driver.ConnectSQL("host=localhost port=5432 dbname=myApp1 user=USER password=PASSWORD")
+	db, err := driver.ConnectSQL(sql_dsn)
 	if err != nil {
-		log.Fatal("Cannot connect to database! Dying...")
+		log.Fatal("Cannot connect to postgre SQL database! Dying...")
 	}
 	log.Println("Connected to postgre SQL database!")
 
-	db, err = driver.ConnectNeo4j("neo4j://localhost:7687", "DATABASE", "PASSWORD")
+	db, err = driver.ConnectNeo4j(neo4j_host, neo4j_username, neo4j_password)
 	if err != nil {
-		log.Fatal("Cannot connect to database! Dying...")
+		log.Fatal("Cannot connect to Neo4j database! Dying...")
 	}
 	log.Println("Connected to Neo4j database!")
+
+	db, err = driver.ConnectRedis(redis_host, redis_password, 0)
+	if err != nil {
+		log.Fatal("Cannot connect to Reids database! Dying...")
+	}
+	log.Println("Connected to Redis database!")
 
 	tc, err := render.CreateTemplateCache()
 	if err != nil {

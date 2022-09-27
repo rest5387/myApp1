@@ -38,7 +38,7 @@ func (m *neo4jRepo) InsertUser(user models.User) error {
 }
 
 // Delete the person node from Neo4j DB.
-func (m *neo4jRepo) DeleteUser(uid uint) error {
+func (m *neo4jRepo) DeleteUser(uid int) error {
 	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (m *neo4jRepo) InsertCard(post models.Post) error {
 }
 
 // Delete the card node with info and its relationships with writer.
-func (m *neo4jRepo) DeleteCard(pid uint) error {
+func (m *neo4jRepo) DeleteCard(pid int) error {
 	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (m *neo4jRepo) DeleteCard(pid uint) error {
 }
 
 // Add a follow relationship from follower to beFollowed person.
-func (m *neo4jRepo) InsertFollow(follower uint, beFollowed uint) error {
+func (m *neo4jRepo) InsertFollow(follower int, beFollowed int) error {
 	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (m *neo4jRepo) InsertFollow(follower uint, beFollowed uint) error {
 }
 
 // Delete a follow relationship from follower to beFollowed person.
-func (m *neo4jRepo) DeleteFollow(follower uint, beFollowed uint) error {
+func (m *neo4jRepo) DeleteFollow(follower int, beFollowed int) error {
 	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (m *neo4jRepo) DeleteFollow(follower uint, beFollowed uint) error {
 }
 
 // Search a follow relationship from follower to beFollowed person.
-func (m *neo4jRepo) SearchFollow(follower uint, beFollowed uint) (bool, error) {
+func (m *neo4jRepo) SearchFollow(follower int, beFollowed int) (bool, error) {
 	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
 	if err != nil {
 		return false, err
@@ -200,4 +200,36 @@ func (m *neo4jRepo) SearchFollow(follower uint, beFollowed uint) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetAllFollowedUID search all uids that user followed.
+func (m *neo4jRepo) GetAllFollowedUID(uid int) ([]int, error) {
+	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close()
+
+	follows, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+		var follows []int
+		result, err := tx.Run("MATCH (follower:Person {uid:$uid})-[r:FOLLOW]->(beFollowed:Person) "+
+			"return beFollowed.uid",
+			map[string]interface{}{
+				"uid": uid,
+			})
+
+		if err != nil {
+			return nil, err
+		}
+		for result.Next() {
+			uid := result.Record().Values()[0].(int64)
+			follows = append(follows, int(uid))
+		}
+		return follows, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return follows.([]int), nil
 }

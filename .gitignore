@@ -1,3 +1,5 @@
 database.yml
 /js
 /html_source
+DB_setting.txt
+/cmd/web/DB_setting.txt

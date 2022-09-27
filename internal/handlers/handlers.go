@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -33,17 +33,19 @@ const getCardsAtOnce int = 3
 
 // Repository is the repository type
 type Repository struct {
-	App   *config.AppConfig
-	SQLDB repository.SQLDatabaseRepo
-	Neo4j repository.Neo4jRepo
+	App        *config.AppConfig
+	SQLDB      repository.SQLDatabaseRepo
+	Neo4j      repository.Neo4jRepo
+	RedisCache repository.RedisRepo
 }
 
 // NewRepo create a new repository
 func NewRepo(a *config.AppConfig, db *driver.DB) *Repository {
 	return &Repository{
-		App:   a,
-		SQLDB: dbrepo.NewPostgresRepo(db.SQL, a),
-		Neo4j: dbrepo.NewNeo4jRepo(db.Neo4j, a),
+		App:        a,
+		SQLDB:      dbrepo.NewPostgresRepo(db.SQL, a),
+		Neo4j:      dbrepo.NewNeo4jRepo(db.Neo4j, a),
+		RedisCache: dbrepo.NewRedisRepo(db.RedisCache, a),
 	}
 }
 
@@ -57,13 +59,13 @@ func (m *Repository) Home(w http.ResponseWriter, r *http.Request) {
 
 	// if not log in, render login page
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
 
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -72,65 +74,33 @@ func (m *Repository) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send user's PIDs to front-end
-	pids, err := m.SQLDB.SearchPIDsByUID(uid)
+	// pids, err := m.SQLDB.SearchPIDsByUID(uid)
+	// if err != nil {
+	// 	m.App.ErrorLog.Println("can't get PIDs from DB")
+	// 	m.App.Session.Put(r.Context(), "error", "Can't get posts list")
+	// 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	// 	return
+	// }
+
+	// Get all follows UID
+	follows, err := m.Neo4j.GetAllFollowedUID(uid)
 	if err != nil {
-		m.App.ErrorLog.Println("can't get PIDs from DB")
-		m.App.Session.Put(r.Context(), "error", "Can't get posts list")
+		http.Error(w, "get all followed uids error", http.StatusInternalServerError)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
-	//Neo4j insert test
-	// err = m.Neo4j.InsertUser(models.User{
-	// 	FirstName: "Peter",
-	// 	LastName:  "Ryan",
-	// 	ID:        45,
-	// })
-	// fmt.Println("Neo4j InsertUser Error Message: ", err)
-	// err = m.Neo4j.DeleteUser(45)
-	// fmt.Println("Neo4j DeleteUser Error Message: ", err)
+	// Get PIDs follows wrote in recent days
+	followsPids, err := m.SQLDB.GetFollowsPIDS(follows)
+	if err != nil {
+		http.Error(w, "get all follows pids error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
 
-	// err = m.Neo4j.InsertUser(models.User{
-	// 	FirstName: "Owen",
-	// 	LastName:  "Welson",
-	// 	ID:        1,
-	// })
-	// err = m.Neo4j.InsertUser(models.User{
-	// 	FirstName: "Rollin",
-	// 	LastName:  "Kade",
-	// 	ID:        2,
-	// })
-	// err = m.Neo4j.InsertFollow(1, 2)
-	// fmt.Println("Neo4j InsertFollow Error Message: ", err)
-
-	// followed, err := m.Neo4j.SearchFollow(12, 2)
-	// if err != nil {
-	// 	fmt.Println("Neo4j SearchFollow Error Message: ", err)
-	// }
-	// fmt.Println("Neo4j SearchFollow(1, 2) return ", followed)
-
-	// err = m.Neo4j.DeleteFollow(1, 2)
-	// fmt.Println("Neo4j DeleteFollow Error Message: ", err)
-
-	// err = m.Neo4j.InsertCard(models.Post{
-	// 	ID:         222,
-	// 	UID:        1,
-	// 	Content:    "test card 222 written by uid 1",
-	// 	Created_at: time.Now(),
-	// 	Updated_at: time.Now(),
-	// })
-	// fmt.Println("Neo4j InsertCard Error Message: ", err)
-
-	// err = m.Neo4j.DeleteCard(222)
-	// fmt.Println("Neo4j DeleteCard Error Message: ", err)
-
-	m.App.Session.Put(r.Context(), "card-list", pids)
-	m.App.Session.Put(r.Context(), "card-idx", uint(0))
-	data := make(map[string]interface{})
-	data["PIDList"] = pids
-	render.RenderTemplate(w, r, "home.page.tmpl", &models.TemplateData{
+	m.App.Session.Put(r.Context(), "card-list", followsPids)
+	render.Template(w, r, "home.page.tmpl", &models.TemplateData{
 		Form: forms.New(nil),
-		Data: data,
 	})
 
 }
@@ -138,13 +108,13 @@ func (m *Repository) Home(w http.ResponseWriter, r *http.Request) {
 // PostHome is the home page new post handler
 func (m *Repository) PostHome(w http.ResponseWriter, r *http.Request) {
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
 
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -191,13 +161,13 @@ func (m *Repository) User(w http.ResponseWriter, r *http.Request) {
 
 	// if not log in, render login page
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
 
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -207,16 +177,25 @@ func (m *Repository) User(w http.ResponseWriter, r *http.Request) {
 
 	visitedUid := r.Context().Value("userid").(int)
 
-	m.SQLDB.SearchUserByUID(uint(visitedUid))
+	m.SQLDB.SearchUserByUID(visitedUid)
+
+	pids, err := m.SQLDB.SearchPIDsByUID(visitedUid)
+	if err != nil {
+		m.App.ErrorLog.Println("can't get PIDs from DB")
+		m.App.Session.Put(r.Context(), "error", "Can't get posts list")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+	m.App.Session.Put(r.Context(), "card-list", pids)
 
 	data := make(map[string]interface{})
 	data["UserID"] = visitedUid
 	data["SelfVisit"] = false
-	if uid == uint(visitedUid) {
+	if uid == visitedUid {
 		data["SelfVisit"] = true
 	}
 
-	render.RenderTemplate(w, r, "personal.page.tmpl", &models.TemplateData{
+	render.Template(w, r, "personal.page.tmpl", &models.TemplateData{
 		Form: forms.New(nil),
 		Data: data,
 	})
@@ -224,9 +203,9 @@ func (m *Repository) User(w http.ResponseWriter, r *http.Request) {
 }
 
 type jsonPostResponse struct {
-	PID         uint      `json:"pid"`
-	UID         uint      `json:"uid"`
-	Likes       uint      `json:"likes"`
+	PID         int       `json:"pid"`
+	UID         int       `json:"uid"`
+	Likes       int       `json:"likes"`
 	FirstName   string    `json:"firstName"`
 	LastName    string    `json:"lastName"`
 	Content     string    `json:"content"`
@@ -241,13 +220,13 @@ type jsonPostResponse struct {
 // and DB operations are all success.
 func (m *Repository) PostCardAJAX(w http.ResponseWriter, r *http.Request) {
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
 
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -308,15 +287,6 @@ func (m *Repository) PostCardAJAX(w http.ResponseWriter, r *http.Request) {
 		Edit:       true,
 	}
 	writeJsonResponse(w, resp)
-	// out, err := json.MarshalIndent(resp, "", "    ")
-	// if err != nil {
-	// 	helpers.ServerError(w, err)
-	// 	return
-	// }
-
-	// w.Header().Set("Content-Type", "application/json")
-	// w.Header().Add("Access-Controll-Allow-Origins", "*")
-	// w.Write(out)
 }
 
 // LoadPostAJAX handles GET cards request and return a JSON style response
@@ -326,13 +296,13 @@ func (m *Repository) GetCardAJAX(w http.ResponseWriter, r *http.Request) {
 	resps := make([]jsonPostResponse, 0, getCardsAtOnce)
 
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
 	// get uid for check there is an user logged in
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -349,10 +319,10 @@ func (m *Repository) GetCardAJAX(w http.ResponseWriter, r *http.Request) {
 
 	offset := r.Context().Value("offset").(int)
 	visitedUID := r.Context().Value("userid").(int)
-	card_list := m.App.Session.Get(r.Context(), "card-list").([]uint)
+	card_list := m.App.Session.Get(r.Context(), "card-list").([]int)
 	var pidsErr error
 	if visitedUID != 0 {
-		card_list, pidsErr = m.SQLDB.SearchPIDsByUID(uint(visitedUID))
+		card_list, pidsErr = m.SQLDB.SearchPIDsByUID(visitedUID)
 		if pidsErr != nil {
 			m.App.ErrorLog.Println("can't get PIDs from DB")
 			m.App.Session.Put(r.Context(), "error", "Can't get posts list")
@@ -365,55 +335,58 @@ func (m *Repository) GetCardAJAX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var resp jsonPostResponse
 	for idx := 0; idx < getCardsAtOnce && ((offset + idx) < len(card_list)); idx++ {
+		key := strconv.Itoa(card_list[offset+idx])
+		if m.RedisCache.Exists(key) {
+			if err := m.RedisCache.Get(key, &resp); err != nil {
+				return
+			}
+			fmt.Println("Cache hit! PID: ", resp.PID)
+		} else {
 
-		post, err := m.SQLDB.SearchPostByPID(card_list[offset+idx])
-		if err != nil {
-			m.App.ErrorLog.Println("can't get Post from DB")
-			m.App.Session.Put(r.Context(), "error", "Can't get post content")
-			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-			return
-		}
-		user, err := m.SQLDB.SearchUserByUID(post.UID)
-		if err != nil {
-			m.App.ErrorLog.Println("can't get user-info from DB")
-			m.App.Session.Put(r.Context(), "error", "Can't get user")
-			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-			return
-		}
-		resp := jsonPostResponse{
-			PID:         card_list[offset+idx],
-			UID:         post.UID,
-			Likes:       post.Likes,
-			FirstName:   user.FirstName,
-			LastName:    user.LastName,
-			Content:     post.Content,
-			Created_at:  post.Created_at,
-			Updated_at:  post.Updated_at,
-			ResponseEnd: false,
-			Edit:        false,
+			post, err := m.SQLDB.SearchPostByPID(card_list[offset+idx])
+			if err != nil {
+				m.App.ErrorLog.Println("can't get Post from DB")
+				m.App.Session.Put(r.Context(), "error", "Can't get post content")
+				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+				return
+			}
+			user, err := m.SQLDB.SearchUserByUID(post.UID)
+			if err != nil {
+				m.App.ErrorLog.Println("can't get user-info from DB")
+				m.App.Session.Put(r.Context(), "error", "Can't get user")
+				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+				return
+			}
+			resp = jsonPostResponse{
+				PID:         card_list[offset+idx],
+				UID:         post.UID,
+				Likes:       post.Likes,
+				FirstName:   user.FirstName,
+				LastName:    user.LastName,
+				Content:     post.Content,
+				Created_at:  post.Created_at,
+				Updated_at:  post.Updated_at,
+				ResponseEnd: false,
+				Edit:        false,
+			}
+
+			fmt.Println("Cache miss! PID: ", resp.PID)
 		}
 		if (offset + idx) == (len(card_list) - 1) {
 			resp.ResponseEnd = true
 		}
 
-		if post.UID == uid {
+		if resp.UID == uid {
 			resp.Edit = true
 		}
 		resps = append(resps, resp)
+		m.RedisCache.Set(key, &resp)
+
 	}
 
 	writeJsonResponse(w, resps)
-	// out, err := json.MarshalIndent(jsonResponses, "", "    ")
-	// if err != nil {
-	// 	helpers.ServerError(w, err)
-	// 	return
-	// }
-
-	// w.Header().Set("Content-Type", "application/json")
-	// w.Header().Add("Access-Controll-Allow-Origins", "*")
-	// w.Write(out)
-
 }
 
 type jsonPutBody struct {
@@ -470,7 +443,7 @@ func (m *Repository) PutCardAJAX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -479,7 +452,7 @@ func (m *Repository) PutCardAJAX(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pid := r.Context().Value("pid").(int)
-	post, _ := m.SQLDB.SearchPostByPID(uint(pid))
+	post, _ := m.SQLDB.SearchPostByPID(pid)
 	if post.UID != uid {
 		http.Error(w, "user access level incorrect", http.StatusBadRequest)
 		return
@@ -490,7 +463,7 @@ func (m *Repository) PutCardAJAX(w http.ResponseWriter, r *http.Request) {
 		IsUpdated: true,
 		Content:   data.Content,
 	}
-	err = m.SQLDB.UpdatePostByPID(uint(pid), *post)
+	err = m.SQLDB.UpdatePostByPID(pid, *post)
 	if err != nil {
 		resp.IsUpdated = false
 		resp.Content = ""
@@ -526,7 +499,7 @@ func (m *Repository) DeleteCardAJAX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uid, ok := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid, ok := m.App.Session.Get(r.Context(), "uid").(int)
 	if !ok {
 		m.App.ErrorLog.Println("can't get error from session")
 		m.App.Session.Put(r.Context(), "error", "Can't get uid from session")
@@ -535,7 +508,7 @@ func (m *Repository) DeleteCardAJAX(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pid := r.Context().Value("pid").(int)
-	post, _ := m.SQLDB.SearchPostByPID(uint(pid))
+	post, _ := m.SQLDB.SearchPostByPID(pid)
 	if post.UID != uid {
 		http.Error(w, "user access level incorrect", http.StatusBadRequest)
 		return
@@ -545,7 +518,7 @@ func (m *Repository) DeleteCardAJAX(w http.ResponseWriter, r *http.Request) {
 		IsDeleted: true,
 		Content:   "",
 	}
-	err = m.SQLDB.DeletePostByPID(uint(pid))
+	err = m.SQLDB.DeletePostByPID(pid)
 	if err != nil {
 		fmt.Println(err.Error())
 		resp.IsDeleted = false
@@ -557,21 +530,21 @@ func (m *Repository) DeleteCardAJAX(w http.ResponseWriter, r *http.Request) {
 
 func (m *Repository) GetUser(w http.ResponseWriter, r *http.Request) {
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
-	uid := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid := m.App.Session.Get(r.Context(), "uid").(int)
 	visitedUid := r.Context().Value("userid").(int)
-	visitedUser, err := m.SQLDB.SearchUserByUID(uint(visitedUid))
+	visitedUser, err := m.SQLDB.SearchUserByUID(visitedUid)
 	if err != nil {
 		m.App.ErrorLog.Println("can't get user-info from SQL DB")
 		m.App.Session.Put(r.Context(), "error", "Can't get user")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
-	followed, err := m.Neo4j.SearchFollow(uid, uint(visitedUid))
+	followed, err := m.Neo4j.SearchFollow(uid, visitedUid)
 	if err != nil {
 		m.App.ErrorLog.Println("can't get user-follow-ship from Neo4j DB")
 		m.App.Session.Put(r.Context(), "error", "Can't get user")
@@ -591,7 +564,7 @@ func (m *Repository) PostFollow(w http.ResponseWriter, r *http.Request) {
 	var data jsonFollowBody
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "read request bidy error", http.StatusInternalServerError)
+		http.Error(w, "read request body error", http.StatusInternalServerError)
 		return
 	}
 
@@ -607,18 +580,18 @@ func (m *Repository) PostFollow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
-	uid := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid := m.App.Session.Get(r.Context(), "uid").(int)
 	visitedUid := r.Context().Value("userid").(int)
 
 	resp := jsonFollowResponse{
 		Success: true,
 	}
-	err = m.Neo4j.InsertFollow(uid, uint(visitedUid))
+	err = m.Neo4j.InsertFollow(uid, visitedUid)
 	if err != nil {
 		resp.Success = false
 	}
@@ -629,7 +602,7 @@ func (m *Repository) DeleteFollow(w http.ResponseWriter, r *http.Request) {
 	var data jsonFollowBody
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "read request bidy error", http.StatusInternalServerError)
+		http.Error(w, "read request body error", http.StatusInternalServerError)
 		return
 	}
 
@@ -645,18 +618,18 @@ func (m *Repository) DeleteFollow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
 	}
-	uid := m.App.Session.Get(r.Context(), "uid").(uint)
+	uid := m.App.Session.Get(r.Context(), "uid").(int)
 	visitedUid := r.Context().Value("userid").(int)
 
 	resp := jsonFollowResponse{
 		Success: true,
 	}
-	err = m.Neo4j.DeleteFollow(uid, uint(visitedUid))
+	err = m.Neo4j.DeleteFollow(uid, visitedUid)
 	if err != nil {
 		resp.Success = false
 	}
@@ -667,7 +640,7 @@ func (m *Repository) DeleteFollow(w http.ResponseWriter, r *http.Request) {
 //Login is the login page handler
 func (m *Repository) Login(w http.ResponseWriter, r *http.Request) {
 	if !m.App.Session.Exists(r.Context(), "uid") {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
@@ -688,7 +661,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 	form.IsEmail("email")
 
 	if !form.Valid() {
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: form,
 		})
 		return
@@ -707,7 +680,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 		//redirect to login page
 		fmt.Printf("Render login page again to user\n")
 		m.App.Session.Put(r.Context(), "error", fmt.Sprintf("The user with \"%s\" is not found. Try again or sign up a new account!", email))
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 			// Error: fmt.Sprintf("The user with %s is not found.Try again or sign up a new account!", email),
 		})
@@ -720,7 +693,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// password is incorrect
 		// render
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: form,
 		})
 		return
@@ -751,7 +724,7 @@ func (m *Repository) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Repository) SignUp(w http.ResponseWriter, r *http.Request) {
-	render.RenderTemplate(w, r, "signup.page.tmpl", &models.TemplateData{
+	render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 		Form: forms.New(nil),
 	})
 }
@@ -770,7 +743,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	form.InputDoubleCheck("password1", "password2")
 
 	if !form.Valid() {
-		render.RenderTemplate(w, r, "signup.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: form,
 		})
 		return
@@ -784,7 +757,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		fmt.Printf("This email has been registerd an account.\n")
 		m.App.Session.Put(r.Context(), "error", "This email has been registerd. Log in or try another one.")
-		render.RenderTemplate(w, r, "signup.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
@@ -795,7 +768,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		m.App.Session.Put(r.Context(), "error", "System error! Try again later!")
-		render.RenderTemplate(w, r, "signup.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
@@ -811,7 +784,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// m.App.Session.Put(r.Context(), "error", err.Error())
 		m.App.Session.Put(r.Context(), "error", "System error! Try Sign up again later!")
-		render.RenderTemplate(w, r, "signup.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
@@ -821,7 +794,17 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	user, err := m.SQLDB.SearchUserByEmail(email)
 	if err != nil {
 		m.App.Session.Put(r.Context(), "error", "System error! Sign up Success but Try log in later!")
-		render.RenderTemplate(w, r, "login.page.tmpl", &models.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
+			Form: forms.New(nil),
+		})
+		return
+	}
+	// insert user into neo4j DB for follow function
+	err = m.Neo4j.InsertUser(newUser)
+	if err != nil {
+		// m.App.Session.Put(r.Context(), "error", err.Error())
+		m.App.Session.Put(r.Context(), "error", "System error! Try Sign up again later!")
+		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
 		return
@@ -837,9 +820,6 @@ func writeJsonResponse(w http.ResponseWriter, resp any) {
 		return
 	}
 
-	log.Println(string(out))
-
-	// w.Header().Set("Access-Controll-Allow-Origins", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Add("Access-Controll-Allow-Origins", "*")
 	w.Write(out)

@@ -16,7 +16,7 @@ type User struct {
 	FirstName    string
 	LastName     string
 	Email        string
-	ID           uint
+	ID           int
 	PasswordHash []byte
 	AccessLevel  int
 	Created_at   time.Time
@@ -24,9 +24,9 @@ type User struct {
 }
 
 type Post struct {
-	ID         uint
-	UID        uint
-	Likes      uint
+	ID         int
+	UID        int
+	Likes      int
 	Content    string
 	Created_at time.Time
 	Updated_at time.Time

@@ -31,3 +31,16 @@ func TestSessionLoad(t *testing.T) {
 		t.Error(fmt.Sprintf("type is not http.Handler, but is %T", v))
 	}
 }
+
+func TestCardParamCtx(t *testing.T) {
+	var myH myHandler
+
+	h := CardParamCtx(&myH)
+
+	switch v := h.(type) {
+	case http.Handler:
+		// do nothing
+	default:
+		t.Error(fmt.Sprintf("type is not http.Handler, but is %T", v))
+	}
+}

@@ -1,19 +1,22 @@
 package driver
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
+	"github.com/go-redis/cache/v9"
+	"github.com/go-redis/redis/v9"
 	_ "github.com/lib/pq"
-	// "github.com/neo4j/neo4j-go-driver/neo4j"
+
 	"github.com/neo4j/neo4j-go-driver/neo4j"
-	// _ "github.com/neo4j/neo4j-go-driver/neo4j"
 )
 
 // DB holds the database connection pool
 type DB struct {
-	SQL   *sql.DB
-	Neo4j neo4j.Driver
+	SQL        *sql.DB
+	Neo4j      neo4j.Driver
+	RedisCache *cache.Cache
 }
 
 var dbConn = &DB{}
@@ -77,33 +80,31 @@ func ConnectNeo4j(dsn string, username string, password string) (*DB, error) {
 	return dbConn, nil
 }
 
-func HelloWorld(uri, username, password string) (string, error) {
-	driver, err := neo4j.NewDriver(uri, neo4j.BasicAuth(username, password, ""))
-	if err != nil {
-		return "", err
-	}
-	defer driver.Close()
-
-	session, _ := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer session.Close()
-
-	greeting, err := session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
-		result, err := transaction.Run(
-			"CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
-			map[string]interface{}{"message": "hello, world"})
-		if err != nil {
-			return nil, err
-		}
-
-		if result.Next() {
-			return result.Record().Values()[0], nil
-		}
-
-		return nil, result.Err()
+// ConnetRedis connect to Redis and get an Ring,
+// then set the Ring to be a cache with TinyLFU algo.
+func ConnectRedis(addr string, password string, db int) (*DB, error) {
+	// context for ring.Ping()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	ring := redis.NewRing(&redis.RingOptions{
+		Addrs: map[string]string{
+			"server1": addr,
+		},
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	})
+
+	_, err := ring.Ping(ctx).Result()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return greeting.(string), nil
+	myCache := cache.New(&cache.Options{
+		Redis:      ring,
+		LocalCache: cache.NewTinyLFU(1000, time.Minute),
+	})
+
+	dbConn.RedisCache = myCache
+
+	return dbConn, nil
 }

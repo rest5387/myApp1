@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/rest5387/myApp1/internal/models"
 )
 
@@ -48,7 +49,7 @@ func (m *postgresDBRepo) SearchUserByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
-func (m *postgresDBRepo) SearchUserByUID(uid uint) (*models.User, error) {
+func (m *postgresDBRepo) SearchUserByUID(uid int) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -64,7 +65,7 @@ func (m *postgresDBRepo) SearchUserByUID(uid uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (m *postgresDBRepo) InsertPost(post models.Post) (uint, error) {
+func (m *postgresDBRepo) InsertPost(post models.Post) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -80,7 +81,7 @@ func (m *postgresDBRepo) InsertPost(post models.Post) (uint, error) {
 		return 0, err
 	}
 
-	var pid uint
+	var pid int
 	query := `SELECT id FROM posts WHERE uid=$1 AND updated_at=$2`
 	row := m.DB.QueryRowContext(ctx, query, post.UID, post.Updated_at)
 	err = row.Scan(&pid)
@@ -91,7 +92,7 @@ func (m *postgresDBRepo) InsertPost(post models.Post) (uint, error) {
 	return pid, nil
 }
 
-func (m *postgresDBRepo) SearchPostByPID(pid uint) (*models.Post, error) {
+func (m *postgresDBRepo) SearchPostByPID(pid int) (*models.Post, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -108,12 +109,12 @@ func (m *postgresDBRepo) SearchPostByPID(pid uint) (*models.Post, error) {
 	return &post, nil
 }
 
-func (m *postgresDBRepo) SearchPIDsByUID(uid uint) ([]uint, error) {
+func (m *postgresDBRepo) SearchPIDsByUID(uid int) ([]int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	var pidset []uint
-	var pid uint
+	var pidset []int
+	var pid int
 	query := `SELECT id FROM posts WHERE uid=$1 ORDER BY created_at DESC`
 
 	rows, err := m.DB.QueryContext(ctx, query, uid)
@@ -130,7 +131,7 @@ func (m *postgresDBRepo) SearchPIDsByUID(uid uint) ([]uint, error) {
 	return pidset, nil
 }
 
-func (m *postgresDBRepo) UpdatePostByPID(pid uint, post models.Post) error {
+func (m *postgresDBRepo) UpdatePostByPID(pid int, post models.Post) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -144,7 +145,7 @@ func (m *postgresDBRepo) UpdatePostByPID(pid uint, post models.Post) error {
 	return nil
 }
 
-func (m *postgresDBRepo) DeletePostByPID(pid uint) error {
+func (m *postgresDBRepo) DeletePostByPID(pid int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -154,4 +155,35 @@ func (m *postgresDBRepo) DeletePostByPID(pid uint) error {
 		return err
 	}
 	return nil
+}
+
+func (m *postgresDBRepo) GetFollowsPIDS(uids []int) ([]int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	var pids []int
+	var pid int
+
+	params := make([]int, len(uids))
+	for idx := range uids {
+		params[idx] = int(uids[idx])
+	}
+
+	query := `SELECT id FROM posts WHERE uid=ANY($1) ORDER BY created_at DESC`
+	// if pq.Array(params) == nil {
+	// 	fmt.Println("pq.Array error")
+	// }
+	// fmt.Println(pq.Array(params))
+	rows, err := m.DB.QueryContext(ctx, query, pq.Array(params))
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		if rows.Scan(&pid) != nil {
+			return nil, err
+		}
+		pids = append(pids, pid)
+	}
+
+	return pids, nil
 }
