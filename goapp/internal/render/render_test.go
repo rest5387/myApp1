@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 )
 
 func TestAddDefaultData(t *testing.T) {

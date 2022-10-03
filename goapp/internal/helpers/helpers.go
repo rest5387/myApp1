@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/rest5387/myApp1/internal/config"
+	"github.com/rest5387/myApp1/goapp/internal/config"
 )
 
 var app *config.AppConfig

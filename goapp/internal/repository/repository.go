@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 )
 
 type SQLDatabaseRepo interface {

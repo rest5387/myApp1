@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/rest5387/myApp1/internal/config"
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/config"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 )
 
 var session *scs.SessionManager

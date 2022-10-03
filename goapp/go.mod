@@ -1,4 +1,4 @@
-module github.com/rest5387/myApp1/
+module github.com/rest5387/myApp1/goapp
 
 go 1.18
 

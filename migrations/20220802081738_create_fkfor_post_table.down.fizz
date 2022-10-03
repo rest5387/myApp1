@@ -1,1 +1,0 @@
-drop_foreign_key("posts", "posts_fk_uid", {"if_exists": true})

@@ -10,19 +10,19 @@ import (
 	"time"
 
 	"github.com/justinas/nosurf"
-	"github.com/rest5387/myApp1/internal/helpers"
-	"github.com/rest5387/myApp1/internal/repository"
-	"github.com/rest5387/myApp1/internal/repository/dbrepo"
+	"github.com/rest5387/myApp1/goapp/internal/helpers"
+	"github.com/rest5387/myApp1/goapp/internal/repository"
+	"github.com/rest5387/myApp1/goapp/internal/repository/dbrepo"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/rest5387/myApp1/internal/forms"
+	"github.com/rest5387/myApp1/goapp/internal/forms"
 
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 
-	"github.com/rest5387/myApp1/internal/config"
+	"github.com/rest5387/myApp1/goapp/internal/config"
 
-	"github.com/rest5387/myApp1/internal/driver"
-	"github.com/rest5387/myApp1/internal/render"
+	"github.com/rest5387/myApp1/goapp/internal/driver"
+	"github.com/rest5387/myApp1/goapp/internal/render"
 )
 
 // Repo the repository used by the handlers

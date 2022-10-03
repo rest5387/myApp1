@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 )
 
 // Test function

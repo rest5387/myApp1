@@ -9,17 +9,17 @@ import (
 	"os"
 	"time"
 
-	"github.com/rest5387/myApp1/internal/helpers"
+	"github.com/rest5387/myApp1/goapp/internal/helpers"
 
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 
 	"github.com/alexedwards/scs/v2"
 
-	"github.com/rest5387/myApp1/internal/config"
-	"github.com/rest5387/myApp1/internal/render"
+	"github.com/rest5387/myApp1/goapp/internal/config"
+	"github.com/rest5387/myApp1/goapp/internal/render"
 
-	"github.com/rest5387/myApp1/internal/driver"
-	"github.com/rest5387/myApp1/internal/handlers"
+	"github.com/rest5387/myApp1/goapp/internal/driver"
+	"github.com/rest5387/myApp1/goapp/internal/handlers"
 )
 
 const portNumber = ":8080"

@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  postgres:
+    image: "postgres-server"
+    ports:
+      - "5432:5432"
+
+  neo4j:
+    image: "neo4j-server"
+    ports:
+      - "7687:7687"
+
+  redis:
+    image: "redis-server"
+    ports:
+      - "6379:6379"
+
+  goapp:
+    build:
+      context: ./goapp
+      dockerfile: Dockerfile
+    # image: "go-app" 
+    depends_on:
+      - "postgres"
+      - "neo4j"
+      - "redis"
+    ports:
+      - "8080:8080"
+
+  nginx:
+    image: "nginx-server"
+    depends_on:
+      - "goapp"
+    ports:
+      - "80:80"
+      

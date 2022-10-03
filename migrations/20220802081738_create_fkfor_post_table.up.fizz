@@ -1,5 +1,0 @@
-add_foreign_key("posts", "uid", {"users": ["id"]}, {
-    "name": "posts_fk_uid",
-    "on_delete": "cascade",
-    "on_update": "cascade",
-})

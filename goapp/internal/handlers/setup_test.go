@@ -18,11 +18,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/justinas/nosurf"
-	"github.com/rest5387/myApp1/internal/config"
-	"github.com/rest5387/myApp1/internal/driver"
-	"github.com/rest5387/myApp1/internal/helpers"
-	"github.com/rest5387/myApp1/internal/models"
-	"github.com/rest5387/myApp1/internal/render"
+	"github.com/rest5387/myApp1/goapp/internal/config"
+	"github.com/rest5387/myApp1/goapp/internal/driver"
+	"github.com/rest5387/myApp1/goapp/internal/helpers"
+	"github.com/rest5387/myApp1/goapp/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/render"
 )
 
 var app config.AppConfig

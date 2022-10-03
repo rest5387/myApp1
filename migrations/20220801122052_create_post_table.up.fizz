@@ -1,7 +1,0 @@
-create_table("posts") {
-  t.Column("id", "integer", {primary: true})
-  t.Column("uid", "integer", {})
-  t.Column("likes", "integer", {"default": 0})
-  t.Column("content", "text", {"null": true})
-}
-

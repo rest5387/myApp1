@@ -2,7 +2,7 @@ package dbrepo
 
 import (
 	"github.com/neo4j/neo4j-go-driver/neo4j"
-	"github.com/rest5387/myApp1/internal/models"
+	"github.com/rest5387/myApp1/goapp/internal/models"
 )
 
 // Test Function

@@ -5,8 +5,8 @@ import (
 
 	"github.com/go-redis/cache/v9"
 	"github.com/neo4j/neo4j-go-driver/neo4j"
-	"github.com/rest5387/myApp1/internal/config"
-	"github.com/rest5387/myApp1/internal/repository"
+	"github.com/rest5387/myApp1/goapp/internal/config"
+	"github.com/rest5387/myApp1/goapp/internal/repository"
 )
 
 type postgresDBRepo struct {

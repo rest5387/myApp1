@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/rest5387/myApp1/internal/forms"
+	"github.com/rest5387/myApp1/goapp/internal/forms"
 )
 
 // TemplateData holds data sets from handlers to templates
