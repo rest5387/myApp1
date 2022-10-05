@@ -1,0 +1,5 @@
+FROM nginx:latest
+
+ADD . /etc/nginx/conf.d/
+
+EXPOSE 80

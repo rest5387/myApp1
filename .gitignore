@@ -3,7 +3,7 @@ goapp/js
 goapp/html_source
 goapp/DB_setting.txt
 goapp/cmd/web/DB_setting.txt
-/neo4j
-/nginx
-/redis
-/postgres
+/neo4j/Dockerfile
+/nginx/Dockerfile
+/redis/Dockerfile
+/postgres/Dockerfile

@@ -1,4 +1,10 @@
 #!/bin/bash
+# setting up environment script for VM environment
+# If you create a new instance on cloud computing platform,
+# You should run this script before you run the project. 
+# This script will install Neo4j, Redis and Postgres.
+# If you need a web server, you can install nginx, apache 
+# or any web server you want by youself. 
 
 # Add Neo4j repository & update
 wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -

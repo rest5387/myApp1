@@ -1,0 +1,17 @@
+FROM postgres
+
+EXPOSE 5432
+
+# Set postgres ENVs
+ENV POSTGRES_USER={user}
+ENV POSTGRES_PASSWORD={password}
+ENV POSTGRES_DB={DBname}
+ENV POSTGRES_PORT={port}
+
+# Copy schema into /docker-entrypoint-initdb.d
+# it will create tables, relations in POSTGRES_DB
+# like schema.sql describeed.
+COPY schema.sql /docker-entrypoint-initdb.d/
+
+# set user be postgres (default is root)
+USER postgres
