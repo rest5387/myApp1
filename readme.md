@@ -1,8 +1,3 @@
----
-title: 'Project documentation template'
-disqus: hackmd
----
-
 My golang web app 1
 ===
 This is a twitter-like web application.
@@ -11,9 +6,6 @@ After Sign-up, they can post their articles and read article written by someone 
 This app used **golang**, **postgresql**, **neo4j** and **redis** for implementation.
 Also used **nginx** to be web server.
 
-## Table of Contents
-
-[TOC]
 
 ## Beginners Guide
 
