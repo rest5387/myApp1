@@ -48,8 +48,7 @@ func TestHandlers(t *testing.T) {
 	routes := getRoutes()
 	ts := httptest.NewTLSServer(routes)
 	defer ts.Close()
-	// rr := httptest.NewRequest("GET", "/", strings.NewReader(""))
-	// rr.Body =
+
 	for _, e := range theTests {
 		if e.method == "GET" {
 			resp, err := ts.Client().Get(ts.URL + e.url)
@@ -62,6 +61,7 @@ func TestHandlers(t *testing.T) {
 				t.Errorf("for %s, expected %d but got %d", e.name, e.expectedStatusCode, resp.StatusCode)
 			}
 		} else {
+			// post request with form
 			values := url.Values{}
 			for _, x := range e.params {
 				values.Add(x.key, x.value)
@@ -71,11 +71,9 @@ func TestHandlers(t *testing.T) {
 				t.Log(err)
 				t.Fatal(err)
 			}
-
 			if resp.StatusCode != e.expectedStatusCode {
 				t.Errorf("for %s, expected %d but got %d", e.name, e.expectedStatusCode, resp.StatusCode)
 			}
-
 		}
 	}
 }
