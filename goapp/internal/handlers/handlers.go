@@ -85,6 +85,7 @@ func (m *Repository) Home(w http.ResponseWriter, r *http.Request) {
 	// Get all follows UID
 	follows, err := m.Neo4j.GetAllFollowedUID(uid)
 	if err != nil {
+		m.App.ErrorLog.Println("neo4j:", err)
 		http.Error(w, "get all followed uids error", http.StatusInternalServerError)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
@@ -93,6 +94,7 @@ func (m *Repository) Home(w http.ResponseWriter, r *http.Request) {
 	// Get PIDs follows wrote in recent days
 	followsPids, err := m.SQLDB.GetFollowsPIDS(follows)
 	if err != nil {
+		m.App.ErrorLog.Println("postgres:", err)
 		http.Error(w, "get all follows pids error", http.StatusInternalServerError)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
@@ -767,7 +769,8 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password1")
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		m.App.Session.Put(r.Context(), "error", "System error! Try again later!")
+		m.App.ErrorLog.Println("bcrypt:", err)
+		m.App.Session.Put(r.Context(), "error", "System error! Try again later!"+err.Error())
 		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
 		})
@@ -783,6 +786,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	err = m.SQLDB.InsertUser(newUser)
 	if err != nil {
 		// m.App.Session.Put(r.Context(), "error", err.Error())
+		m.App.ErrorLog.Println("postgres:", err)
 		m.App.Session.Put(r.Context(), "error", "System error! Try Sign up again later!")
 		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
@@ -793,6 +797,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	// redirect to home page and show the post wall.
 	user, err := m.SQLDB.SearchUserByEmail(email)
 	if err != nil {
+		m.App.ErrorLog.Println("postgres:", err)
 		m.App.Session.Put(r.Context(), "error", "System error! Sign up Success but Try log in later!")
 		render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),
@@ -803,6 +808,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 	err = m.Neo4j.InsertUser(newUser)
 	if err != nil {
 		// m.App.Session.Put(r.Context(), "error", err.Error())
+		m.App.ErrorLog.Println("neo4j:", err)
 		m.App.Session.Put(r.Context(), "error", "System error! Try Sign up again later!")
 		render.Template(w, r, "signup.page.tmpl", &models.TemplateData{
 			Form: forms.New(nil),

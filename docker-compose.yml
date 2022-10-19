@@ -4,12 +4,18 @@ services:
     build: ./postgres
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   neo4j:
     build: ./neo4j
     image: "neo4j-server"
     ports:
       - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_log:/log
+      - neo4j_conf:/conf
 
   redis:
     build: ./redis
@@ -36,3 +42,9 @@ services:
       - "goapp"
     ports:
       - "80:80"
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_log:
+  neo4j_conf:

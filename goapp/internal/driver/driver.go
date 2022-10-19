@@ -9,7 +9,7 @@ import (
 	"github.com/go-redis/redis/v9"
 	_ "github.com/lib/pq"
 
-	"github.com/neo4j/neo4j-go-driver/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
 // DB holds the database connection pool
@@ -71,7 +71,8 @@ func NewDatabase(dsn string) (*sql.DB, error) {
 func ConnectNeo4j(dsn string, username string, password string) (*DB, error) {
 	driver, err := neo4j.NewDriver(dsn, neo4j.BasicAuth(username, password, ""), func(config *neo4j.Config) {
 		// set Neo4j driver/connections configs
-		config.Encrypted = false
+		// config.Encrypted = false
+		// config.
 	})
 	if err != nil {
 		return nil, err

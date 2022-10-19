@@ -1,26 +1,31 @@
 package dbrepo
 
 import (
-	"github.com/neo4j/neo4j-go-driver/neo4j"
+	"fmt"
+
+	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 	"github.com/rest5387/myApp1/goapp/internal/models"
 )
 
 // Test Function
 func (m *neo4jRepo) AllUsers() bool {
-	session, _ := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// m.Neo4j.NewSession(neo4j.SessionConfig{})
 	session.Close()
 	return true
 }
 
 // Add the person node and its properties into Neo4j DB.
 func (m *neo4jRepo) InsertUser(user models.User) error {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	// fmt.Errorf("new session: %s", err.Error())
+	// 	// return err
+	// 	return fmt.Errorf("new session: %s", err.Error())
+	// }
 	defer session.Close()
 
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run("CREATE (n:Person {uid: $uid, firstName:$firstName, lastName:$lastName})", map[string]interface{}{
 			"uid":       user.ID,
 			"firstName": user.FirstName,
@@ -32,20 +37,21 @@ func (m *neo4jRepo) InsertUser(user models.User) error {
 		return result.Consume()
 	})
 	if err != nil {
-		return err
+		// return err
+		return fmt.Errorf("writeTransaction: %s", err.Error())
 	}
 	return nil
 }
 
 // Delete the person node from Neo4j DB.
 func (m *neo4jRepo) DeleteUser(uid int) error {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return err
+	// }
 	defer session.Close()
 
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run("MATCH (n:Person {uid: $uid}) "+"DETACH DELETE n", map[string]interface{}{
 			"uid": uid,
 		})
@@ -54,19 +60,22 @@ func (m *neo4jRepo) DeleteUser(uid int) error {
 		}
 		return result.Consume()
 	})
-
+	if err != nil {
+		// return err
+		return fmt.Errorf("writeTransaction: %s", err.Error())
+	}
 	return nil
 }
 
 // Add the card node with info and its relationships with writer.
 func (m *neo4jRepo) InsertCard(post models.Post) error {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return err
+	// }
 	defer session.Close()
 	neo4j.DateOf(post.Created_at)
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run(
 			"CREATE (n:Card {pid:$pid, content:$content, created_at:$created_at, updated_at:$updated_at}) "+
 				"WITH n "+
@@ -92,13 +101,13 @@ func (m *neo4jRepo) InsertCard(post models.Post) error {
 
 // Delete the card node with info and its relationships with writer.
 func (m *neo4jRepo) DeleteCard(pid int) error {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return err
+	// }
 	defer session.Close()
 
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run("MATCH (n:Card {pid: $pid}) "+"DETACH DELETE n", map[string]interface{}{
 			"pid": pid,
 		})
@@ -115,13 +124,13 @@ func (m *neo4jRepo) DeleteCard(pid int) error {
 
 // Add a follow relationship from follower to beFollowed person.
 func (m *neo4jRepo) InsertFollow(follower int, beFollowed int) error {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return err
+	// }
 	defer session.Close()
 
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run(
 			"MATCH (follower:Person), (beFollowed:Person) "+
 				"WHERE follower.uid = $uid1 AND beFollowed.uid = $uid2 "+
@@ -143,13 +152,13 @@ func (m *neo4jRepo) InsertFollow(follower int, beFollowed int) error {
 
 // Delete a follow relationship from follower to beFollowed person.
 func (m *neo4jRepo) DeleteFollow(follower int, beFollowed int) error {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return err
+	// }
 	defer session.Close()
 
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run(
 			"MATCH (follower:Person {uid:$uid1})-[r:FOLLOW]->(beFollowed:Person {uid:$uid2}) "+
 				"DELETE r",
@@ -170,10 +179,10 @@ func (m *neo4jRepo) DeleteFollow(follower int, beFollowed int) error {
 
 // Search a follow relationship from follower to beFollowed person.
 func (m *neo4jRepo) SearchFollow(follower int, beFollowed int) (bool, error) {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return false, err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return false, err
+	// }
 	defer session.Close()
 
 	followed, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
@@ -189,7 +198,8 @@ func (m *neo4jRepo) SearchFollow(follower int, beFollowed int) (bool, error) {
 			return nil, err
 		}
 		for result.Next() {
-			followed = result.Record().Values()[0].(int64) > 0
+			// followed = result.Record().Values()[0].(int64) > 0
+			followed = result.Record().Values[0].(int64) > 0
 		}
 		return followed, nil
 	})
@@ -204,10 +214,10 @@ func (m *neo4jRepo) SearchFollow(follower int, beFollowed int) (bool, error) {
 
 // GetAllFollowedUID search all uids that user followed.
 func (m *neo4jRepo) GetAllFollowedUID(uid int) ([]int, error) {
-	session, err := m.Neo4j.NewSession(neo4j.SessionConfig{})
-	if err != nil {
-		return nil, err
-	}
+	session := m.Neo4j.NewSession(neo4j.SessionConfig{})
+	// if err != nil {
+	// 	return nil, err
+	// }
 	defer session.Close()
 
 	follows, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
@@ -222,7 +232,8 @@ func (m *neo4jRepo) GetAllFollowedUID(uid int) ([]int, error) {
 			return nil, err
 		}
 		for result.Next() {
-			uid := result.Record().Values()[0].(int64)
+			// uid := result.Record().Values()[0].(int64)
+			uid := result.Record().Values[0].(int64)
 			follows = append(follows, int(uid))
 		}
 		return follows, nil
