@@ -376,6 +376,7 @@ func (m *Repository) GetCardAJAX(w http.ResponseWriter, r *http.Request) {
 
 			fmt.Println("Cache miss! PID: ", resp.PID)
 		}
+		resp.ResponseEnd = false
 		if (offset + idx) == (len(card_list) - 1) {
 			resp.ResponseEnd = true
 		}
