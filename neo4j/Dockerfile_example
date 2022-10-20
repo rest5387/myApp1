@@ -3,7 +3,5 @@ FROM neo4j:4.4.9-community
 EXPOSE 7687
 EXPOSE 7474
 
-VOLUME ["/neo4j_data", "/neo4j_log", "/neo4j_import", "/neo4j_plugins"]
-
 # set neo4j auth (username / password)
 ENV NEO4J_AUTH={username}/{password}

@@ -198,7 +198,6 @@ func (m *neo4jRepo) SearchFollow(follower int, beFollowed int) (bool, error) {
 			return nil, err
 		}
 		for result.Next() {
-			// followed = result.Record().Values()[0].(int64) > 0
 			followed = result.Record().Values[0].(int64) > 0
 		}
 		return followed, nil

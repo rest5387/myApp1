@@ -805,7 +805,7 @@ func (m *Repository) PostSignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// insert user into neo4j DB for follow function
-	err = m.Neo4j.InsertUser(newUser)
+	err = m.Neo4j.InsertUser(*user)
 	if err != nil {
 		// m.App.Session.Put(r.Context(), "error", err.Error())
 		m.App.ErrorLog.Println("neo4j:", err)
