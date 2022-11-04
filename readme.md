@@ -6,6 +6,16 @@ After Sign-up, they can post their articles and read article written by someone 
 This app used **golang**, **postgresql**, **neo4j** and **redis** for implementation.
 Also used **nginx** to be web server.
 
+## Demo
+[Myapp1](http://35.227.190.219/)
+
+Test accounts
+```gherkin=
+email: DavidL@example.com
+password: 1111
+email: RogerP@example.com
+password: 1111
+```
 
 ## Beginners Guide
 
